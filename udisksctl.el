@@ -1,4 +1,4 @@
-;;; udisksctl.el --- Interface to udisksctl
+;;; udisksctl.el --- Interface to udisksctl -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2013 Toni Schmidbauer
 
@@ -7,6 +7,7 @@
 ;; Version: 0.1
 ;; Keywords: tools
 ;; URL: https://github.com/tosmi/emacs-udisksctl
+;; Package-Requires: ((emacs "24.1"))
 
 ;; This package is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -36,8 +37,6 @@
 
 
 ;;; Code:
-
-;;; Customizable variables
 
 ;;; Todo
 ;; - maybe the functions to mount/unmount/lock/unlock could be
