@@ -448,10 +448,13 @@ UDISK-DATA is a parsed udisk information."
   "Update variables with new device information from udisksctl."
   (setq udisksctl-device-alist (udisksctl--call-dump)))
 
-(defun udisksctl-list ()
-  "Show an interactive buffer with a list of devices."
-  (interactive)
-  (udisksctl-update-device-alist)
+(defun udisksctl-list (&optional no-update)
+  "Show an interactive buffer with a list of devices.
+If NO-UPDATE is t, the do not update the device list (do not call
+udisksctl dump)."
+  (interactive "P")
+  (unless no-update
+    (udisksctl-update-device-alist))
   (with-current-buffer (get-buffer-create udisksctl-list-buffer-name)
     (erase-buffer)
     (mapc #'udisksctl--insert-udisk udisksctl-device-alist)
