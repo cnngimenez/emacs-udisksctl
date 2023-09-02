@@ -407,5 +407,51 @@ STRING is the complete udisksctl dump output."
   (string-suffix-p "Filesystem"
                    (car (alist-get "type" device-data nil nil #'string=))))
 
+;; --------------------------------------------------
+;; Main function
+;; --------------------------------------------------
+
+(defun udisksctl--insert-block (device-data)
+  "Insert device information for user consumption.
+Format a string and insert the information from DEVICE-DATA to the
+current buffer."
+  (insert (format "%s  "
+                  (alist-get "Device" device-data nil nil #'string=))))
+
+(defun udisksctl--insert-filesystem (device-data)
+  "Insert filesystem information for user consumption.
+DEVICE-DATA is the filesystem parsed information."
+  (insert (format "%s  "
+                  (alist-get "MountPoints" device-data nil nil #'string=))))
+
+(defun udisksctl--insert-section (section-data)
+  "Insert the section data for user consumption.
+Call the proper function depending on the type of the section.
+SECTION-DATA is a parsed section from the dump."
+  (cond ((udisksctl-device-block-p section-data)
+         (udisksctl--insert-block section-data))
+        ((udisksctl-device-filesystem-p section-data)
+         (udisksctl--insert-filesystem section-data))))
+
+(defun udisksctl--insert-udisk (udisk-data)
+  "Insert udisk and their sections data into current buffer.
+Format a string and insert it for user consumption.
+UDISK-DATA is a parsed udisk information."
+  (mapc #'udisksctl--insert-section (car (alist-get "sections" udisk-data nil nil #'string=)))
+  (insert "\n"))
+                         
+(defun udisksctl-update-device-alist ()
+  "Update variables with new device information from udisksctl."
+  (setq udisksctl-device-alist (udisksctl--call-dump)))
+
+(defun udisksctl-list ()
+  "Show an interactive buffer with a list of devices."
+  (interactive)
+  (udisksctl-update-device-alist)
+  (with-current-buffer (get-buffer-create udisksctl-list-buffer-name)
+    (erase-buffer)
+    (mapc #'udisksctl--insert-udisk udisksctl-device-alist)
+    (switch-to-buffer (current-buffer))))
+  
 (provide 'udisksctl)
 ;;; udisksctl.el ends here
