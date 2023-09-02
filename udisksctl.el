@@ -43,18 +43,40 @@
 ;; - maybe the functions to mount/unmount/lock/unlock could be
 ;;   defined via defmacro?
 
+(defgroup udisksctl nil
+  "The udisksctl interface."
+  :group 'applications)
+
 (defvar udisksctl-buffer-name "*udisksctl*")
-(defvar udisksctl-status-cmd "status")
-(defvar udisksctl-mount-cmd "mount")
-(defvar udisksctl-unmount-cmd "unmount")
-(defvar udisksctl-unlock-cmd "unlock")
-(defvar udisksctl-lock-cmd "lock")
-(defvar udisksctl-output nil)
+
+(defcustom udisksctl-status-cmd "status"
+  "Parameter for udisksctl to get the status information."
+  :type 'string
+  :group 'udisksctl)
+
+(defcustom udisksctl-mount-cmd "mount"
+  "Parameter for udisksctl to mount a device."
+  :type 'string
+  :group 'udisksctl)
+
+(defcustom udisksctl-unmount-cmd "unmount"
+  "Parameter for udisksctl to unmount a device."
+  :type 'string
+  :group 'udisksctl)
+
+(defcustom udisksctl-unlock-cmd "unlock"
+  "Parameter for udiskctl to unlock a device."
+  :type 'string
+  :group 'udisksctl)
+
+(defcustom udisksctl-lock-cmd "lock"
+  "Parameter for udisksctl to lock a device."
+  :type 'string
+  :group 'udisksctl)
+
 (defvar udisksctl-process-buffer-name "*udisksctl-process*")
 (defvar udisksctl-process nil)
 (defvar udisksctl-device nil)
-(defvar udisksctl-mapped-devices nil)
-(defvar udisksctl-mounted-devices nil)
 
 (defvar udisksctl-mode-map
   (let ((map (make-sparse-keymap)))
@@ -91,7 +113,6 @@ If NOERASE is specified the output buffer will not be erased."
       (if noerase
 	  (goto-char (point-max))
 	(erase-buffer))
-      (setq udisksctl-output nil)
       (setq udisksctl-process
 	    (start-process "udisksctl" udisksctl-process-buffer-name "udisksctl" cmd "-b" device)))
     (set-process-filter udisksctl-process 'udisksctl-process-filter)
@@ -235,7 +256,7 @@ MESSAGE is the string prompt to use.  Device name are files under
       (read-string message)
     (read-string "Enter device name: ")))
 
-(defun udisksctl-status-cmd ()
+(defun udisksctl--call-status-cmd ()
   "Call the status command and print it at the udiskctl buffer."
   (call-process "udisksctl" nil udisksctl-buffer-name nil
 		udisksctl-status-cmd)
@@ -247,10 +268,9 @@ Print the status stored at `udisksctl-status-list' at the udiskctl
 buffer."
   (with-current-buffer (get-buffer udisksctl-buffer-name)
     (goto-char (point-max))
-    (if (not (equal udisksctl-status-list nil))
-	(progn
+    (unless (equal udisksctl-status-list nil)
 	  (insert "\nDevice mappings\n---------------\n")
-	  (udisksctl-print-alist udisksctl-status-list "%s mapped to %s\n")))))
+	  (udisksctl-print-alist udisksctl-status-list "%s mapped to %s\n"))))
 
 (defun udisksctl-refresh-buffer ()
   "Update the udiskctl buffer."
@@ -258,7 +278,7 @@ buffer."
   (with-current-buffer (get-buffer udisksctl-buffer-name)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (udisksctl-status-cmd))))
+      (udisksctl--call-status-cmd))))
 
 (defun udisksctl-create-buffer ()
   "Create the udisksctl buffer."
