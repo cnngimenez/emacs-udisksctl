@@ -1,11 +1,12 @@
-;;; udisksctl.el --- interface to udisksctl
+;;; udisksctl.el --- Interface to udisksctl
 
 ;; Copyright (C) 2013 Toni Schmidbauer
 
 ;; Author: Toni Schmidbauer <toni@stderr.at>
 ;; Created: 11 June 2013
-;; Version: 0.1 (11 June 2013)
-;; Keywords: udisksctl, emacs
+;; Version: 0.1
+;; Keywords: tools
+;; URL: https://github.com/tosmi/emacs-udisksctl
 
 ;; This package is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -69,8 +70,8 @@
 
 (define-derived-mode udisksctl-mode special-mode
   "Udisksctl"
-  "Major mode for udisksctl. Shows status information about disks
-via udisksctl.
+  "Major mode for udisksctl.
+Shows status information about disks via udisksctl.
 
 Keybindings:
 \\{udisksctl-mode-map}"
@@ -104,23 +105,28 @@ If NOERASE is specified the output buffer will not be erased."
 	(udisksctl-remember-mounts-and-mappings)))
     (udisksctl-refresh-buffer)))
 
-(defun udisksctl-error-message()
+(defun udisksctl-error-message ()
+  "Signal an elisp error when the udiskctl process does."
   (error "%s" (or (with-current-buffer (get-buffer udisksctl-process-buffer-name)
 		    (goto-char (point-min))
 		    (or
 		     (re-search-forward "^\\([^[:space:]].*?\\)\\.$" nil t))
 		    (match-string 1))
-		  "udiskctl failed"
-		  )))
+		  "udiskctl failed")))
 
 (defun udisksctl-success-message()
+  "Show a success message when the udiskctl process does."
   (message "%s" (with-current-buffer (get-buffer udisksctl-process-buffer-name)
 		  (goto-char (point-min))
 		  (re-search-forward "^\\(.*\\)$" nil t)
 		  (match-string 1))))
 
-(defvar udisksctl-status-list nil)
-(defun udisksctl-remember-mounts-and-mappings()
+(defvar udisksctl-status-list nil
+  "An alist of devices and ids.")
+
+(defun udisksctl-remember-mounts-and-mappings ()
+  "Find a device name from the process output buffer and store it.
+If found, save the device name to `udisksctl-status-list'."
   (with-current-buffer (get-buffer udisksctl-process-buffer-name)
     (goto-char (point-min))
     (cond ((or
@@ -145,8 +151,10 @@ If NOERASE is specified the output buffer will not be erased."
       (insert (format format device dmdevice))
       (udisksctl-print-alist (cdr list) format))))
 
-(defun udisksctl-process-filter(proc string)
-  "filter udisksctl output for a password prompt"
+(defun udisksctl-process-filter (proc string)
+  "Filter udisksctl output for a password prompt.
+PROC is the process object.
+STRING is the process output to filter."
   (save-current-buffer
     (set-buffer (process-buffer proc))
     (if (string-match "^Passphrase: " string)
@@ -157,15 +165,19 @@ If NOERASE is specified the output buffer will not be erased."
 	(set-marker (process-mark proc) (point))
 	(goto-char (process-mark proc))))))
 
-(defun udisksctl-process-sentinel(proc event)
+(defun udisksctl-process-sentinel (proc event)
+  "Sentinel for the udiskctl process.
+PROC is the process being watched.
+EVENT is the event that triggered the sentinel."
   (with-current-buffer (process-buffer proc)
     (let ((inhibit-read-only t))
       (goto-char (point-max))
       (insert event "\n"))))
 
-(defun udisksctl-parse-output(udisksctl-proc)
-  (save-current-buffer
-    (set-buffer (process-buffer udisksctl-proc))))
+;; ;; Not used!
+;; (defun udisksctl-parse-output (udisksctl-proc)
+;;   (save-current-buffer
+;;     (set-buffer (process-buffer udisksctl-proc))))
 
 ;; (defmacro udiskctl-cmd (cmd &optional device)
 ;;   "Run the given udisksctl CMD on DEVICE."
@@ -179,46 +191,60 @@ If NOERASE is specified the output buffer will not be erased."
 
 ;; (udiskctl-cmd )
 
-(defun udisksctl-unlock(&optional device)
+(defun udisksctl-unlock (&optional device)
+  "Call the udiskctl unlock command.
+DEVICE is the device name (for example: /dev/sda)."
   (interactive)
   (if (not device)
       (setq udisksctl-device (udisksctl-read-device "Enter device name to unlock: "))
     (setq udisksctl-device 'device))
   (udisksctl-execute-cmd udisksctl-unlock-cmd udisksctl-device))
 
-(defun udisksctl-lock(&optional device)
+(defun udisksctl-lock (&optional device)
+  "Call the udiskctl lock command.
+DEVICE is the device name (for example: /dev/sda)."
   (interactive)
   (if (not device)
       (setq udisksctl-device (udisksctl-read-device "Enter device name to lock: "))
     (setq udisksctl-device 'device))
   (udisksctl-execute-cmd udisksctl-lock-cmd udisksctl-device))
 
-(defun udisksctl-mount(&optional device)
+(defun udisksctl-mount (&optional device)
+  "Mount a device using udisksctl.
+DEVICE is the device name (for example: /dev/sda)."
   (interactive)
   (if (not device)
       (setq udisksctl-device (udisksctl-read-device "Enter device name to mount: "))
     (setq udisksctl-device 'device))
   (udisksctl-execute-cmd udisksctl-mount-cmd udisksctl-device))
 
-(defun udisksctl-unmount(&optional device)
+(defun udisksctl-unmount (&optional device)
+  "Umount a device using udiskctl.
+DEVICE is the device name (for example: /dev/sda)."
   (interactive)
   (if (not device)
       (setq udisksctl-device (udisksctl-read-device "Enter device name to unmount: "))
     (setq udisksctl-device 'device))
   (udisksctl-execute-cmd udisksctl-unmount-cmd udisksctl-device))
 
-(defun udisksctl-read-device(&optional message)
-"read a device name to work on (mount, unlock ...)"
+(defun udisksctl-read-device (&optional message)
+  "Read a device name from minibufer to work on (mount, unlock ...).
+MESSAGE is the string prompt to use.  Device name are files under
+ /dev directory.  For example: /dev/sda."
   (if (boundp 'message)
       (read-string message)
     (read-string "Enter device name: ")))
 
-(defun udisksctl-status-cmd()
+(defun udisksctl-status-cmd ()
+  "Call the status command and print it at the udiskctl buffer."
   (call-process "udisksctl" nil udisksctl-buffer-name nil
 		udisksctl-status-cmd)
   (udisksctl-print-status))
 
-(defun udisksctl-print-status()
+(defun udisksctl-print-status ()
+  "Print the status at the udiskctl buffer.
+Print the status stored at `udisksctl-status-list' at the udiskctl
+buffer."
   (with-current-buffer (get-buffer udisksctl-buffer-name)
     (goto-char (point-max))
     (if (not (equal udisksctl-status-list nil))
@@ -226,29 +252,27 @@ If NOERASE is specified the output buffer will not be erased."
 	  (insert "\nDevice mappings\n---------------\n")
 	  (udisksctl-print-alist udisksctl-status-list "%s mapped to %s\n")))))
 
-(defun udisksctl-refresh-buffer()
-""
+(defun udisksctl-refresh-buffer ()
+  "Update the udiskctl buffer."
   (interactive)
   (with-current-buffer (get-buffer udisksctl-buffer-name)
     (let ((inhibit-read-only t))
       (erase-buffer)
       (udisksctl-status-cmd))))
 
-(defun udisksctl-create-buffer()
-  "creates the udisksctl buffer"
-  (if (not (buffer-live-p (get-buffer udisksctl-buffer-name)))
-      (progn
-	(get-buffer-create udisksctl-buffer-name)
-	(udisksctl-refresh-buffer)))
+(defun udisksctl-create-buffer ()
+  "Create the udisksctl buffer."
+  (unless (buffer-live-p (get-buffer udisksctl-buffer-name))
+    (get-buffer-create udisksctl-buffer-name)
+    (udisksctl-refresh-buffer))
   (switch-to-buffer udisksctl-buffer-name)
   (udisksctl-mode))
 
 ;;;###autoload
 (defun udisksctl-status()
-  "run udiskctl status"
+  "Run udiskctl status and show it in a new buffer."
   (interactive)
-  (progn
-    (udisksctl-create-buffer)))
+  (udisksctl-create-buffer))
 
 (provide 'udisksctl)
 ;;; udisksctl.el ends here
