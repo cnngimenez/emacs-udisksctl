@@ -7,7 +7,7 @@
 ;; Version: 0.1
 ;; Keywords: tools
 ;; URL: https://github.com/tosmi/emacs-udisksctl
-;; Package-Requires: ((emacs "24.1"))
+;; Package-Requires: ((emacs "25.1"))
 
 ;; This package is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -73,9 +73,31 @@
   :type 'string
   :group 'udisksctl)
 
+(defcustom udisksctl-dump-cmd "dump"
+  "Parameter for udisksctl to dump all device information."
+  :type 'string
+  :group 'udisksctl)
+
 (defvar udisksctl-process-buffer-name "*udisksctl-process*")
+(defconst udisksctl-list-buffer-name "*udisksctl-list*"
+  "Name of the list device buffer.")
 (defvar udisksctl-process nil)
 (defvar udisksctl-device nil)
+
+(defvar udisksctl-device-alist nil
+  "An alist for each device and their properties.
+This variable is used as a temporal data to avoid calling the dump
+command many times during processing.
+
+The format is as follows:
+
+  (((\"name\" UDISK-NAME)
+    (\"sections\" ((\"type\" \"org.freedesktop.UDisk2.Block\") ...)
+                  ((\"type\" \"org.freedesktop.UDisk2.Filename\") ...)
+                  ...))
+   ...)
+
+Use `udisksctl-update-device-alist' function to update this variable.")
 
 (defvar udisksctl-mode-map
   (let ((map (make-sparse-keymap)))
@@ -317,7 +339,73 @@ This function is designed for the udiskctl buffer."
     (if device-name
         (udisksctl-mount (concat "/dev/" device-name))
       (message "No device name found at point."))))
-    
+
+;; --------------------------------------------------
+;; Parsing the dump output
+;; --------------------------------------------------
+
+(defun udisksctl--parse-block (string)
+  "Return an alist for the parsed information in STRING .
+STRING should be a block from the dump output."
+  (let ((alist (mapcar (lambda (s)
+                         (split-string s ":" nil "[[:space:]]*"))
+                       (split-string string "\n" t))))
+    (append (list (list "type" (concat "org.freedesktop" (caar alist))))
+            (seq-drop alist 2))))
+
+(defun udisksctl--parse-section (string)
+  "Parse the STRING data insde a section selecting the proper type.
+Determine the type from STRING, and call the proper parse function
+for it."
+  (cond ((string-prefix-p ".UDisks2.Block" string)
+         (udisksctl--parse-block string))
+        ((string-prefix-p ".UDisks2.Filesystem" string)
+         ;; The function udisksctl--parse-filesystem would be the same
+         ;; as this one:
+         (udisksctl--parse-block string))
+        ;; ((string-prefix-p ".UDisks2.Management" string)
+        ;; (udisksctl--parse-management string))
+        (t nil)))
+
+(defun udisksctl--parse-udisk (string)
+  "Parse a dump section.
+A dump section contains several Management, Block or Filesystem type
+of data inside.
+STRING is the dumped section."
+  (let ((lst-data (split-string string "  org.freedesktop" nil)))
+    (append (list (list "name" (car lst-data)))
+            (list (list "sections"
+                        (mapcar #'udisksctl--parse-section
+                                (seq-drop lst-data 1)))))))
+
+(defun udisksctl--parse-dump-string (string)
+  "Parse a complete dump output.
+Parse the whole dump output string into an alist.
+STRING is the complete udisksctl dump output."
+  (mapcar #'udisksctl--parse-udisk (split-string string "\n\n" t "[[:space:]]")))
+  
+(defun udisksctl--parse-dump ()
+  "Parse the dump information from the current buffer."
+  (udisksctl--parse-dump-string
+   (buffer-substring-no-properties (point-min) (point-max))))
+  
+(defun udisksctl--call-dump ()
+  "Call the dump command and parse it."
+  (with-current-buffer (get-buffer-create udisksctl-buffer-name)
+    (erase-buffer)
+    (call-process "udisksctl" nil udisksctl-buffer-name nil
+                  udisksctl-dump-cmd)
+    (udisksctl--parse-dump)))
+
+(defun udisksctl-device-block-p (device-data)
+  "Return t if DEVICE-DATA is a device block type of information."
+  (string-suffix-p "Block"
+                   (car (alist-get "type" device-data nil nil #'string=))))
+
+(defun udisksctl-device-filesystem-p (device-data)
+  "Return t if DEVICE-DATA is a device block type of information."
+  (string-suffix-p "Filesystem"
+                   (car (alist-get "type" device-data nil nil #'string=))))
 
 (provide 'udisksctl)
 ;;; udisksctl.el ends here
