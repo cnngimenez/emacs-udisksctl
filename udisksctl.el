@@ -415,8 +415,12 @@ STRING is the complete udisksctl dump output."
   "Insert device information for user consumption.
 Format a string and insert the information from DEVICE-DATA to the
 current buffer."
-  (insert (format "%s  "
-                  (alist-get "Device" device-data nil nil #'string=))))
+  (insert (format "%s %s"
+                  (alist-get "Device" device-data nil nil #'string=)
+                  (if (string= "true" (car (alist-get "ReadOnly" device-data nil nil #'string=)))
+                      "🔓"
+                    "🔒"))))
+                               
 
 (defun udisksctl--insert-filesystem (device-data)
   "Insert filesystem information for user consumption.
