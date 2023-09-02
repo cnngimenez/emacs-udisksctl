@@ -42,6 +42,8 @@
 ;; - maybe the functions to mount/unmount/lock/unlock could be
 ;;   defined via defmacro?
 
+(require 'ert)
+
 (defgroup udisksctl nil
   "The udisksctl interface."
   :group 'applications)
@@ -344,14 +346,67 @@ This function is designed for the udiskctl buffer."
 ;; Parsing the dump output
 ;; --------------------------------------------------
 
+(defun udisksctl--append-lists (alist)
+  "Append unitary lists in ALIST with the cons found before.
+
+This is to fix a problem when parsing dump output lists.  For
+instance, the following text:
+
+    Symlinks:          /dev/disk/by-id/abcd1
+                       /dev/disk/by-id/abcd2
+                       /dev/mapper/luks-abcd1
+
+Would generate the following parsed alist:
+
+  (...
+     (\"Symlinks\" \"/dev/disk/by-id/abcd\")
+    (\"/dev/disk/by-id/abcd2\")
+    (\"/dev/mapper/luks-abcd1\")
+   ...)
+
+This function appends the unitary lists with the first cons:
+
+  (...
+     (\"Symlinks\" (\"/dev/disk/by-id/abcd\"
+                    \"/dev/disk/by-id/abcd2\"
+                    \"/dev/mapper/luks-abcd1\"))
+   ...)
+
+Return an alist properly formatted."
+  (let ((result nil)
+        (prev nil))
+    (seq-do (lambda (c)
+              (if (eq (length c) 1)
+                  (setq prev (list (car prev)
+                                   (append (if (listp (cadr prev))
+                                               (cadr prev)
+                                             (cdr prev))
+                                           c)))
+                (progn (when prev
+                         (setq result (push prev result)))
+                       (setq prev c))))
+            alist)
+    (when prev
+      (setq result (push prev result)))
+    (seq-reverse result)))
+
+(ert-deftest udisksctl--append-lists-test ()
+  (should (equal '(("test1" "test2")
+                   ("hello" ("world1" "world2" "world3"))
+                   ("a1" "a2"))
+                 (udisksctl--append-lists '(("test1" "test2")
+                                           ("hello" "world1") ("world2") ("world3")
+                                           ("a1" "a2"))))))
+
 (defun udisksctl--parse-block (string)
   "Return an alist for the parsed information in STRING .
 STRING should be a block from the dump output."
-  (let ((alist (mapcar (lambda (s)
-                         (split-string s ":" nil "[[:space:]]*"))
-                       (split-string string "\n" t))))
+  (let ((alist (udisksctl--append-lists
+                (mapcar (lambda (s)
+                          (split-string s ":" nil "[[:space:]]*"))
+                        (split-string string "\n" t)))))
     (append (list (list "type" (concat "org.freedesktop" (caar alist))))
-            (seq-drop alist 2))))
+            (seq-drop alist 1))))
 
 (defun udisksctl--parse-section (string)
   "Parse the STRING data insde a section selecting the proper type.
@@ -416,17 +471,16 @@ STRING is the complete udisksctl dump output."
 Format a string and insert the information from DEVICE-DATA to the
 current buffer."
   (insert (format "%s %s"
-                  (alist-get "Device" device-data nil nil #'string=)
+                  (car (alist-get "Device" device-data nil nil #'string=))
                   (if (string= "true" (car (alist-get "ReadOnly" device-data nil nil #'string=)))
                       "🔓"
                     "🔒"))))
-                               
 
 (defun udisksctl--insert-filesystem (device-data)
   "Insert filesystem information for user consumption.
 DEVICE-DATA is the filesystem parsed information."
   (insert (format "%s  "
-                  (alist-get "MountPoints" device-data nil nil #'string=))))
+                  (car (alist-get "MountPoints" device-data nil nil #'string=)))))
 
 (defun udisksctl--insert-section (section-data)
   "Insert the section data for user consumption.
