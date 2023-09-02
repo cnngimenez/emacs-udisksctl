@@ -83,7 +83,7 @@
     (define-key map "p" 'previous-line)
     (define-key map "u" 'udisksctl-unlock)
     (define-key map "l" 'udisksctl-lock)
-    (define-key map "m" 'udisksctl-mount)
+    (define-key map "m" 'udisksctl-mount-at-point)
     (define-key map "U" 'udisksctl-unmount)
     (define-key map "g" 'udisksctl-refresh-buffer)
     map)
@@ -101,7 +101,8 @@ Keybindings:
   (setq major-mode 'udisksctl-mode
 	buffer-read-only t))
 
-(setq debug-on-error nil)
+;; ;; For debugging purposes only!
+;;(setq debug-on-error nil)
 
 (defun udisksctl-execute-cmd (cmd device &optional noerase)
   "Execute CMD on DEVICE, does not require user input.
@@ -150,17 +151,17 @@ If found, save the device name to `udisksctl-status-list'."
   (with-current-buffer (get-buffer udisksctl-process-buffer-name)
     (goto-char (point-min))
     (cond ((or
-	    (re-search-forward "Unlocked \\([^[:space:]]+\\) as \\([^[:space:]]+\\)\." nil t)
-	    (re-search-forward "Mounted \\([^[:space:]]+\\) at \\([^[:space:]]+\\)\.?" nil t))
-	   (add-to-list 'udisksctl-status-list (cons (match-string 1) (match-string 2)))))
-    (cond ((or
-	    (re-search-forward "Unmounted \\([^[:space:]]+\\)\." nil t)
-	    (re-search-forward "Locked \\([^[:space:]]+\\)\." nil t))
-	   (udisksctl-remove-mapping (match-string 1))))))
+	        (re-search-forward "Unlocked \\([^[:space:]]+\\) as \\([^[:space:]]+\\)\." nil t)
+	        (re-search-forward "Mounted \\([^[:space:]]+\\) at \\([^[:space:]]+\\)\.?" nil t))
+	       (add-to-list 'udisksctl-status-list (cons (match-string 1) (match-string 2))))
+          ((or
+	        (re-search-forward "Unmounted \\([^[:space:]]+\\)\." nil t)
+	        (re-search-forward "Locked \\([^[:space:]]+\\)\." nil t))
+	       (udisksctl-remove-mapping (match-string 1))))))
 
 (defun udisksctl-remove-mapping (searchkey)
   "Search for SEARCHKEY in the status list."
-  (let((key (assoc searchkey udisksctl-status-list)))
+  (let ((key (assoc searchkey udisksctl-status-list)))
     (setq udisksctl-status-list (assq-delete-all (car key) udisksctl-status-list))))
 
 (defun udisksctl-print-alist (list format)
@@ -292,6 +293,31 @@ buffer."
   "Run udiskctl status and show it in a new buffer."
   (interactive)
   (udisksctl-create-buffer))
+
+(defconst udisksctl-status-device-regexp "[[:space:]]\\([^[:space:]]+\\)[[:space:]]*$"
+  "Regexp to find the device name on the status buffer.
+It find the \"sda\" device name.  Observe that it can find the
+\"DEVICE\" string and the separator line too.")
+
+(defun udisksctl--find-device-name ()
+  "Find the device name near the current point."
+  (save-excursion
+    (goto-char (line-beginning-position))
+    (when (re-search-forward udisksctl-status-device-regexp (line-end-position) t)
+      (let ((str (match-string 1)))
+        (unless (or (string= "DEVICE" str)
+                    (string-prefix-p "-" str))
+          str)))))
+
+(defun udisksctl-mount-at-point ()
+  "Mount the device at the current point.
+This function is designed for the udiskctl buffer."
+  (interactive)
+  (let ((device-name (udisksctl--find-device-name)))
+    (if device-name
+        (udisksctl-mount (concat "/dev/" device-name))
+      (message "No device name found at point."))))
+    
 
 (provide 'udisksctl)
 ;;; udisksctl.el ends here
