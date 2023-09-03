@@ -7,7 +7,7 @@
 ;; Version: 0.1
 ;; Keywords: tools
 ;; URL: https://github.com/tosmi/emacs-udisksctl
-;; Package-Requires: ((emacs "25.1"))
+;; Package-Requires: ((emacs "27.1"))
 
 ;; This package is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@
 ;; - maybe the functions to mount/unmount/lock/unlock could be
 ;;   defined via defmacro?
 
+(require 'text-property-search)
 (require 'ert)
 
 (defgroup udisksctl nil
@@ -318,30 +319,6 @@ buffer."
   (interactive)
   (udisksctl-create-buffer))
 
-(defconst udisksctl-status-device-regexp "[[:space:]]\\([^[:space:]]+\\)[[:space:]]*$"
-  "Regexp to find the device name on the status buffer.
-It find the \"sda\" device name.  Observe that it can find the
-\"DEVICE\" string and the separator line too.")
-
-(defun udisksctl--find-device-name ()
-  "Find the device name near the current point."
-  (save-excursion
-    (goto-char (line-beginning-position))
-    (when (re-search-forward udisksctl-status-device-regexp (line-end-position) t)
-      (let ((str (match-string 1)))
-        (unless (or (string= "DEVICE" str)
-                    (string-prefix-p "-" str))
-          str)))))
-
-(defun udisksctl-mount-at-point ()
-  "Mount the device at the current point.
-This function is designed for the udiskctl buffer."
-  (interactive)
-  (let ((device-name (udisksctl--find-device-name)))
-    (if device-name
-        (udisksctl-mount (concat "/dev/" device-name))
-      (message "No device name found at point."))))
-
 ;; --------------------------------------------------
 ;; Parsing the dump output
 ;; --------------------------------------------------
@@ -466,12 +443,52 @@ STRING is the complete udisksctl dump output."
 ;; Main function
 ;; --------------------------------------------------
 
+(defface udisksctl-device-face
+  '((t (:height 1.2 :inherit (bold))))
+  "Face used for device names."
+  :group 'udisksctl)
+
+(defface udisksctl-readonly-face
+  '((t (:box (:line-width (2 . 2)
+              :color "grey75"
+              :style flat-button))))
+  "Face used for device names."
+  :group 'udisksctl)
+
+(defface udisksctl-label-face
+  '((t (:inherit (italic))))
+  "Face used for device names."
+  :group 'udisksctl)
+
+(defun udisksctl--add-string-property (property-type string)
+  "Add a set of properties to the given STRING.
+There are several sets of properties with names.  Given the
+PROPERTY-TYPE name, assign that set of properties.
+Possible values of PROPERTY-TYPE are symbols such as: device,
+readonly, label."
+  
+  (cond ((eq property-type 'device)
+         (propertize string
+                     'face 'udisksctl-device-face
+                     'udisks-type 'device))
+        ((eq property-type 'readonly)
+         (propertize string
+                     'face 'udisksctl-readonly-face
+                     'udisks-type 'readonly))
+        ((eq property-type 'readonly)
+         (propertize string
+                     'face 'udisksctl-label-face
+                     'udisks-type 'label))
+        (t string)))
+
 (defun udisksctl--insert-block (device-data)
   "Insert device information for user consumption.
 Format a string and insert the information from DEVICE-DATA to the
 current buffer."
   (insert (format "%s %s %s 🏷️\"%s\""
-                  (car (alist-get "Device" device-data nil nil #'string=))
+                  (udisksctl--add-string-property
+                   'device
+                   (car (alist-get "Device" device-data nil nil #'string=)))
                   (car (alist-get "IdType" device-data nil nil #'string=))
                   (if (string= "true" (car (alist-get "ReadOnly" device-data nil nil #'string=)))
                       "🔒"
@@ -512,9 +529,34 @@ udisksctl dump)."
   (unless no-update
     (udisksctl-update-device-alist))
   (with-current-buffer (get-buffer-create udisksctl-list-buffer-name)
-    (erase-buffer)
-    (mapc #'udisksctl--insert-udisk udisksctl-device-alist)
+    (let ((inhibit-read-only t))
+      (udisksctl-mode)
+      (erase-buffer)
+      (mapc #'udisksctl--insert-udisk udisksctl-device-alist))
     (switch-to-buffer (current-buffer))))
-  
+
+(defun udisksctl-mount-at-point ()
+  "Mount the device at the current point.
+This function is designed for the udiskctl buffer."
+  (interactive)
+  (let ((device-name (udisksctl--find-device-name)))
+    (if device-name
+        (progn (message "Mounting %s" device-name)
+               (udisksctl-mount device-name))
+      (message "No device name found at point."))))
+
+(defun udisksctl--find-device-name ()
+  "Find the device name near the current point."
+  (save-excursion
+    (goto-char (line-end-position))
+    (let ((pmatch (text-property-search-backward 'udisks-type 'device t)))
+      (when (and pmatch
+                 (<= (line-beginning-position) (prop-match-beginning pmatch))
+                 (<= (prop-match-end pmatch) (line-end-position)))
+        (buffer-substring-no-properties (prop-match-beginning pmatch)
+                                        (prop-match-end pmatch))))))
+    
+
+
 (provide 'udisksctl)
 ;;; udisksctl.el ends here
