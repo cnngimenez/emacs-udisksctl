@@ -116,7 +116,7 @@ Use `udisksctl-update-device-alist' function to update this variable.")
     (define-key map "m" 'udisksctl-mount-at-point)
     (define-key map "U" 'udisksctl-unmount-at-point)
     (define-key map "i" 'udisksctl-info-at-point)
-    (define-key map "g" 'udisksctl-refresh-buffer)
+    (define-key map "g" 'udisksctl-list)
     map)
   "Keymap for `udisksctl-mode'.")
 
@@ -247,37 +247,33 @@ EVENT is the event that triggered the sentinel."
   "Call the udiskctl unlock command.
 DEVICE is the device name (for example: /dev/sda)."
   (interactive)
-  (if (not device)
-      (setq udisksctl-device (udisksctl-read-device "Enter device name to unlock: "))
-    (setq udisksctl-device 'device))
-  (udisksctl-execute-cmd udisksctl-unlock-cmd udisksctl-device))
+  (let ((udisksctl-device (or device
+                              (udisksctl-read-device "Enter device name to unlock: "))))
+    (udisksctl-execute-cmd udisksctl-unlock-cmd udisksctl-device)))
 
 (defun udisksctl-lock (&optional device)
   "Call the udiskctl lock command.
 DEVICE is the device name (for example: /dev/sda)."
   (interactive)
-  (if (not device)
-      (setq udisksctl-device (udisksctl-read-device "Enter device name to lock: "))
-    (setq udisksctl-device 'device))
-  (udisksctl-execute-cmd udisksctl-lock-cmd udisksctl-device))
+  (let ((udisksctl-device (or device
+                              (udisksctl-read-device "Enter device name to lock: "))))
+    (udisksctl-execute-cmd udisksctl-lock-cmd udisksctl-device)))
 
 (defun udisksctl-mount (&optional device)
   "Mount a device using udisksctl.
 DEVICE is the device name (for example: /dev/sda)."
   (interactive)
-  (if (not device)
-      (setq udisksctl-device (udisksctl-read-device "Enter device name to mount: "))
-    (setq udisksctl-device 'device))
-  (udisksctl-execute-cmd udisksctl-mount-cmd udisksctl-device))
+  (let ((udisksctl-device (or device
+                              (udisksctl-read-device "Enter device name to mount: "))))
+    (udisksctl-execute-cmd udisksctl-mount-cmd udisksctl-device)))
 
 (defun udisksctl-unmount (&optional device)
   "Umount a device using udiskctl.
 DEVICE is the device name (for example: /dev/sda)."
   (interactive)
-  (if (not device)
-      (setq udisksctl-device (udisksctl-read-device "Enter device name to unmount: "))
-    (setq udisksctl-device 'device))
-  (udisksctl-execute-cmd udisksctl-unmount-cmd udisksctl-device))
+  (let ((udisksctl-device (or device
+                              (udisksctl-read-device "Enter device name to unmount: "))))
+    (udisksctl-execute-cmd udisksctl-unmount-cmd udisksctl-device)))
 
 (defun udisksctl-info (&optional device)
   "Call udisksctl info command on the given DEVICE.
