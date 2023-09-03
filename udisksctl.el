@@ -76,6 +76,11 @@
   :type 'string
   :group 'udisksctl)
 
+(defcustom udisksctl-info-cmd "info"
+  "Parameter for udisksctl to lock a device."
+  :type 'string
+  :group 'udisksctl)
+
 (defcustom udisksctl-dump-cmd "dump"
   "Parameter for udisksctl to dump all device information."
   :type 'string
@@ -110,6 +115,7 @@ Use `udisksctl-update-device-alist' function to update this variable.")
     (define-key map "l" 'udisksctl-lock-at-point)
     (define-key map "m" 'udisksctl-mount-at-point)
     (define-key map "U" 'udisksctl-unmount-at-point)
+    (define-key map "i" 'udisksctl-info-at-point)
     (define-key map "g" 'udisksctl-refresh-buffer)
     map)
   "Keymap for `udisksctl-mode'.")
@@ -272,6 +278,19 @@ DEVICE is the device name (for example: /dev/sda)."
       (setq udisksctl-device (udisksctl-read-device "Enter device name to unmount: "))
     (setq udisksctl-device 'device))
   (udisksctl-execute-cmd udisksctl-unmount-cmd udisksctl-device))
+
+(defun udisksctl-info (&optional device)
+  "Call udisksctl info command on the given DEVICE.
+Ask for the device if not provided.  DEVICE must be a block file name,
+for example: /dev/sda1."
+  (interactive)
+  (let ((udisksctl-device (or device
+                              (udisksctl-read-device "Enter device name to unmount: "))))
+    (with-current-buffer (get-buffer-create udisksctl-buffer-name)
+      (erase-buffer)
+      (call-process "udisksctl" nil udisksctl-buffer-name nil
+                    udisksctl-info-cmd "-b" udisksctl-device)
+      (switch-to-buffer (current-buffer)))))
 
 (defun udisksctl-read-device (&optional message)
   "Read a device name from minibufer to work on (mount, unlock ...).
@@ -573,6 +592,16 @@ This function is designed for the udiskctl buffer."
     (if device-name
         (progn (message "Unlocking %s" device-name)
                (udisksctl-unlock device-name))
+      (message "No device name found at point."))))
+
+(defun udisksctl-info-at-point ()
+  "Mount the device at the current line.
+This function is designed for the udiskctl buffer."
+  (interactive)
+  (let ((device-name (udisksctl--find-device-name)))
+    (if device-name
+        (progn (message "Info %s" device-name)
+               (udisksctl-info device-name))
       (message "No device name found at point."))))
 
 (defun udisksctl--find-device-name ()
