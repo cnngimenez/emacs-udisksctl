@@ -106,10 +106,10 @@ Use `udisksctl-update-device-alist' function to update this variable.")
   (let ((map (make-sparse-keymap)))
     (define-key map "n" 'next-line)
     (define-key map "p" 'previous-line)
-    (define-key map "u" 'udisksctl-unlock)
-    (define-key map "l" 'udisksctl-lock)
+    (define-key map "u" 'udisksctl-unlock-at-point)
+    (define-key map "l" 'udisksctl-lock-at-point)
     (define-key map "m" 'udisksctl-mount-at-point)
-    (define-key map "U" 'udisksctl-unmount)
+    (define-key map "U" 'udisksctl-unmount-at-point)
     (define-key map "g" 'udisksctl-refresh-buffer)
     map)
   "Keymap for `udisksctl-mode'.")
@@ -536,13 +536,43 @@ udisksctl dump)."
     (switch-to-buffer (current-buffer))))
 
 (defun udisksctl-mount-at-point ()
-  "Mount the device at the current point.
+  "Mount the device at the current line.
 This function is designed for the udiskctl buffer."
   (interactive)
   (let ((device-name (udisksctl--find-device-name)))
     (if device-name
         (progn (message "Mounting %s" device-name)
                (udisksctl-mount device-name))
+      (message "No device name found at point."))))
+
+(defun udisksctl-unmount-at-point ()
+  "Unmount the device at the current line.
+This function is designed for the udiskctl buffer."
+  (interactive)
+  (let ((device-name (udisksctl--find-device-name)))
+    (if device-name
+        (progn (message "Unmounting %s" device-name)
+               (udisksctl-unmount device-name))
+      (message "No device name found at point."))))
+
+(defun udisksctl-lock-at-point ()
+  "Lock the device at the current line.
+This function is designed for the udiskctl buffer."
+  (interactive)
+  (let ((device-name (udisksctl--find-device-name)))
+    (if device-name
+        (progn (message "Locking %s" device-name)
+               (udisksctl-lock device-name))
+      (message "No device name found at point."))))
+
+(defun udisksctl-unlock-at-point ()
+  "Mount the device at the current line.
+This function is designed for the udiskctl buffer."
+  (interactive)
+  (let ((device-name (udisksctl--find-device-name)))
+    (if device-name
+        (progn (message "Unlocking %s" device-name)
+               (udisksctl-unlock device-name))
       (message "No device name found at point."))))
 
 (defun udisksctl--find-device-name ()
@@ -556,7 +586,5 @@ This function is designed for the udiskctl buffer."
         (buffer-substring-no-properties (prop-match-beginning pmatch)
                                         (prop-match-end pmatch))))))
     
-
-
 (provide 'udisksctl)
 ;;; udisksctl.el ends here
