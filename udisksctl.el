@@ -475,7 +475,7 @@ STRING is the complete udisksctl dump output."
   "Face used for device names."
   :group 'udisksctl)
 
-(defun udisksctl--add-string-property (property-type string)
+(defun udisksctl--add-string-property (property-type data string)
   "Add a set of properties to the given STRING.
 There are several sets of properties with names.  Given the
 PROPERTY-TYPE name, assign that set of properties.
@@ -485,15 +485,18 @@ readonly, label."
   (cond ((eq property-type 'device)
          (propertize string
                      'face 'udisksctl-device-face
-                     'udisks-type 'device))
+                     'udisks-type 'device
+                     'udisks-data data))
         ((eq property-type 'readonly)
          (propertize string
                      'face 'udisksctl-readonly-face
-                     'udisks-type 'readonly))
+                     'udisks-type 'readonly
+                     'udisks-data data))
         ((eq property-type 'readonly)
          (propertize string
                      'face 'udisksctl-label-face
-                     'udisks-type 'label))
+                     'udisks-type 'label
+                     'udisks-data data))
         (t string)))
 
 (defun udisksctl--insert-block (device-data)
@@ -503,6 +506,7 @@ current buffer."
   (insert (format "%s %s %s 🏷️\"%s\""
                   (udisksctl--add-string-property
                    'device
+                   device-data
                    (car (alist-get "Device" device-data nil nil #'string=)))
                   (car (alist-get "IdType" device-data nil nil #'string=))
                   (if (string= "true" (car (alist-get "ReadOnly" device-data nil nil #'string=)))
