@@ -250,7 +250,7 @@ Use:
 
 Lastly, ask the user."
   (or (udisksctl-get-password-from-auth-source uuid)
-      (read-passwd "Passphrase: " nil)))    
+      (read-passwd "Passphrase: " nil)))
 
 (defun udisksctl-process-filter (proc string)
   "Filter udisksctl output for a password prompt.
@@ -259,7 +259,10 @@ STRING is the process output to filter."
   (save-current-buffer
     (set-buffer (process-buffer proc))
     (if (string-match "^Passphrase: " string)
-	(process-send-string proc (concat (udiskctl--get-password uuid) "\n"))
+	(process-send-string proc
+                             (concat
+                              (udisksctl--get-password (udisksctl-block-to-uuid udisksctl--process-device))
+                              "\n"))
       (save-excursion
 	(goto-char (process-mark proc))
 	(insert string)
