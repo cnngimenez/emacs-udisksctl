@@ -44,6 +44,7 @@
 
 (require 'text-property-search)
 (require 'ert)
+(require 'auth-source)
 
 (defgroup udisksctl nil
   "The udisksctl interface."
@@ -90,6 +91,8 @@
 (defconst udisksctl-list-buffer-name "*udisksctl-list*"
   "Name of the list device buffer.")
 (defvar udisksctl-process nil)
+(defvar udisksctl--process-device nil
+  "The device associated with the current process.")
 (defvar udisksctl-device nil)
 
 (defvar udisksctl-device-alist nil
@@ -136,9 +139,34 @@ Keybindings:
 ;; ;; For debugging purposes only!
 ;;(setq debug-on-error nil)
 
+(defun udisksctl-elt-devices (elt-data)
+  "Return all device names from an element in ELT-DATA.
+ELT-DATA is an alist element retrieved from the list in
+`udisksctl-device-alist'."
+  (flatten-list
+   (mapcar (lambda (section)
+             (alist-get "Device" section nil nil #'string-equal))
+           (car (alist-get "sections" elt-data nil nil #'string-equal)))))
+
+(defun udisksctl-device-search-data (block-path)
+  "Search on `udisksctl-device-alist' a device data from the BLOCK-PATH."
+  (cl-find-if (lambda (elt)
+                (member block-path (udisksctl-elt-devices elt)))
+              udisksctl-device-alist))
+
+(defun udisksctl-block-to-uuid (block-path)
+  "Return the UUID from the BLOCK-PATH.
+Search in `udisksctl-device-alist' the given BLOCK-PATH and return the UUID."
+  (car
+   (mapcar (lambda (section)
+             (car (alist-get "IdUUID" section nil nil #'string-equal)))
+           (car (alist-get "sections" (udisksctl-device-search-data block-path)
+                           nil nil #'string-equal)))))
+
 (defun udisksctl-execute-cmd (cmd device &optional noerase)
   "Execute CMD on DEVICE, does not require user input.
 If NOERASE is specified the output buffer will not be erased."
+  (setq udisksctl--process-device device)
   (let ((process-connection-type t))
     (get-buffer-create  udisksctl-process-buffer-name)
     (with-current-buffer udisksctl-process-buffer-name
@@ -204,6 +232,26 @@ If found, save the device name to `udisksctl-status-list'."
       (insert (format format device dmdevice))
       (udisksctl-print-alist (cdr list) format))))
 
+(defun udisksctl-get-password-from-auth-source (uuid)
+  "Get the password from auth-source.
+This is used to search the password for LUKS devices in KWallet or other
+programs.  A special auth-source backend should be configured in Emacs.
+
+UUID is the disk identifier to search on auth-source."
+  (let ((secret (auth-source-search :label uuid :folder "SolidLuks" :type 'kwallet)))
+    (when secret
+      (plist-get (car secret) :secret))))
+      
+(defun udisksctl--get-password (uuid)
+  "Retrieve password to unlock UUID disk from different sources.
+Use:
+
+1.  auth-source (KWallet and others).
+
+Lastly, ask the user."
+  (or (udisksctl-get-password-from-auth-source uuid)
+      (read-passwd "Passphrase: " nil)))    
+
 (defun udisksctl-process-filter (proc string)
   "Filter udisksctl output for a password prompt.
 PROC is the process object.
@@ -211,7 +259,7 @@ STRING is the process output to filter."
   (save-current-buffer
     (set-buffer (process-buffer proc))
     (if (string-match "^Passphrase: " string)
-	(process-send-string proc (concat (read-passwd "Passphrase: " nil) "\n"))
+	(process-send-string proc (concat (udiskctl--get-password uuid) "\n"))
       (save-excursion
 	(goto-char (process-mark proc))
 	(insert string)
