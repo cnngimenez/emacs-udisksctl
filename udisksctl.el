@@ -238,7 +238,7 @@ This is used to search the password for LUKS devices in KWallet or other
 programs.  A special auth-source backend should be configured in Emacs.
 
 UUID is the disk identifier to search on auth-source."
-  (let ((secret (auth-source-search :label uuid :folder "SolidLuks" :type 'kwallet)))
+  (let ((secret (auth-source-search :label uuid :folder "SolidLuks")))
     (when secret
       (plist-get (car secret) :secret))))
       
