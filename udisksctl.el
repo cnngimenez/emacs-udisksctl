@@ -121,6 +121,8 @@ Use `udisksctl-update-device-alist' function to update this variable.")
     (define-key map "i" #'udisksctl-info-at-point)
     (define-key map "f" #'udisksctl-find-file-at-point)
     (define-key map "g" #'udisksctl-list)
+    (define-key map "\r" #'udisksctl-find-file-at-point)
+    (define-key map "\n" #'udisksctl-find-file-at-point)
     map)
   "Keymap for `udisksctl-mode'.")
 
@@ -133,8 +135,8 @@ Keybindings:
 \\{udisksctl-mode-map}"
   (kill-all-local-variables)
   (use-local-map udisksctl-mode-map)
-  (setq major-mode 'udisksctl-mode
-	buffer-read-only t))
+  (setq-local major-mode 'udisksctl-mode
+	      buffer-read-only t))
 
 ;; ;; For debugging purposes only!
 ;;(setq debug-on-error nil)
