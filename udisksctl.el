@@ -346,9 +346,7 @@ for example: /dev/sda1."
   "Read a device name from minibufer to work on (mount, unlock ...).
 MESSAGE is the string prompt to use.  Device name are files under
  /dev directory.  For example: /dev/sda."
-  (if (boundp 'message)
-      (read-string message)
-    (read-string "Enter device name: ")))
+  (read-string (or message "Enter device name: ")))
 
 (defun udisksctl--call-status-cmd ()
   "Call the status command and print it at the udiskctl buffer."
@@ -534,7 +532,9 @@ STRING is the complete udisksctl dump output."
 There are several sets of properties with names.  Given the
 PROPERTY-TYPE name, assign that set of properties.
 Possible values of PROPERTY-TYPE are symbols such as: device,
-readonly, label."
+readonly, label.
+DATA is the udisk-data to store on the given PROPERTY-TYPE name.  This data is
+provided by udisksctl program."
   
   (cond ((eq property-type 'device)
          (propertize string
@@ -556,7 +556,9 @@ readonly, label."
 (defun udisksctl--insert-block (device-data &optional udisk-data)
   "Insert device information for user consumption.
 Format a string and insert the information from DEVICE-DATA to the
-current buffer."
+current buffer.
+UDISK-DATA sholud be the data provided by the udisksctl program (see
+`udisksctl-device-alist' and `udisksctl-update-device-list')."
   (insert (format "%s %s %s 🏷️\"%s\""
                   (udisksctl--add-string-property
                    'device
@@ -570,7 +572,9 @@ current buffer."
 
 (defun udisksctl--insert-filesystem (device-data &optional udisk-data)
   "Insert filesystem information for user consumption.
-DEVICE-DATA is the filesystem parsed information."
+DEVICE-DATA is the filesystem parsed information.
+UDISK-DATA sholud be the data provided by the udisksctl program (see
+`udisksctl-device-alist' and `udisksctl-update-device-list')."
   (insert (format " | %s "
                   (propertize
                    (car (alist-get "MountPoints" device-data nil nil #'string=))
@@ -684,7 +688,7 @@ information."
   (interactive)
   (let ((udisks-data (udisksctl--find-device-data-at-point)))
     (when udisks-data
-      (find-file 
+      (find-file
        (car (alist-get "MountPoints"
                        (udisksctl--find-section "org.freedesktop.UDisks2.Filesystem"
                                                udisks-data)
