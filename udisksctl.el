@@ -572,7 +572,7 @@ current buffer."
   "Insert filesystem information for user consumption.
 DEVICE-DATA is the filesystem parsed information."
   (insert (format " | %s "
-                  (propertize                   
+                  (propertize
                    (car (alist-get "MountPoints" device-data nil nil #'string=))
                    'udisk-data udisk-data))))
 
@@ -673,7 +673,7 @@ SECTION-TYPE can be \"org.freedesktop.UDisks2.Filesystem\" for
 filesystems section, or \"org.freedesktop.UDisks2.Block\" for block
 information."
   (seq-find (lambda (section-data)
-              (string= (car (alist-get "type" 
+              (string= (car (alist-get "type"
                                        section-data
                                        nil nil #'string=))
                        section-type))
@@ -702,8 +702,13 @@ information."
                                         (prop-match-end pmatch))))))
 
 (defun udisksctl--find-device-data-at-point ()
-  "Find device data properties at current point."
+  "Find device data properties at current point.
+Search the device porperty stored at in the \\'udisks-data text property in the
+current line."
   (save-excursion
+    (when (equal 0 (current-column))
+      ;; We need to move one character to the right, otherwise it will search for the previous line device data.
+      (right-char))
     (let ((pmatch (text-property-search-backward 'udisks-type 'device t)))
       (when (and pmatch
                  (<= (line-beginning-position) (prop-match-beginning pmatch))
