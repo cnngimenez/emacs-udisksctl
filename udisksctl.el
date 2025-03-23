@@ -92,6 +92,11 @@
   :type 'string
   :group 'udisksctl)
 
+(defcustom udisksctl-use-auth-source-passwords t
+  "Use auth-source library and `auth-source-search' to retrieve disks passwords."
+  :type 'boolean
+  :group 'udisksctl)
+
 (defvar udisksctl-process-buffer-name "*udisksctl-process*")
 (defconst udisksctl-list-buffer-name "*udisksctl-list*"
   "Name of the list device buffer.")
@@ -254,10 +259,10 @@ UUID is the disk identifier to search on auth-source."
   "Retrieve password to unlock UUID disk from different sources.
 Use:
 
-1.  auth-source (KWallet and others).
+1.  auth-source (KWallet and others) see `udisksctl-use-auth-source-passwords'.
 
 Lastly, ask the user."
-  (or (udisksctl-get-password-from-auth-source uuid)
+  (or (and udisksctl-use-auth-source-passwords (udisksctl-get-password-from-auth-source uuid))
       (read-passwd "Passphrase: " nil)))
 
 (defun udisksctl-process-filter (proc string)
@@ -349,7 +354,7 @@ Ask for the device if not provided.  DEVICE must be a block file name,
 for example: /dev/sda1."
   (interactive)
   (let ((udisksctl-device (or device
-                              (udisksctl-read-device "Enter device name to unmount: "))))
+                              (udisksctl-read-device "Enter device name to info: "))))
     (with-current-buffer (get-buffer-create udisksctl-buffer-name)
       (erase-buffer)
       (call-process "udisksctl" nil udisksctl-buffer-name nil
