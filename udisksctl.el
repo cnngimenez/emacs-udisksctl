@@ -77,6 +77,11 @@
   :type 'string
   :group 'udisksctl)
 
+(defcustom udisksctl-poweroff-cmd "power-off"
+  "Parameter for udisksctl to power off a device."
+  :type 'string
+  :group 'udisksctl)
+
 (defcustom udisksctl-info-cmd "info"
   "Parameter for udisksctl to lock a device."
   :type 'string
@@ -114,6 +119,7 @@ Use `udisksctl-update-device-alist' function to update this variable.")
   (let ((map (make-sparse-keymap)))
     (define-key map "n" #'next-line)
     (define-key map "p" #'previous-line)
+    (define-key map "P" #'udisksctl-poweroff-at-point)
     (define-key map "u" #'udisksctl-unlock-at-point)
     (define-key map "l" #'udisksctl-lock-at-point)
     (define-key map "m" #'udisksctl-mount-at-point)
@@ -304,6 +310,14 @@ DEVICE is the device name (for example: /dev/sda)."
   (let ((udisksctl-device (or device
                               (udisksctl-read-device "Enter device name to unlock: "))))
     (udisksctl-execute-cmd udisksctl-unlock-cmd udisksctl-device)))
+
+(defun udisksctl-poweroff (&optional device)
+  "Call the udisksctl power-off command.
+DEVICE is the device name (for example: /dev/sda)."
+  (interactive)
+  (let ((udisksctl-device (or device
+                              (udisksctl-read-device "Enter device name to power-off: "))))
+    (udisksctl-execute-cmd udisksctl-poweroff-cmd udisksctl-device)))
 
 (defun udisksctl-lock (&optional device)
   "Call the udiskctl lock command.
@@ -656,6 +670,16 @@ This function is designed for the udiskctl buffer."
     (if device-name
         (progn (message "Unlocking %s" device-name)
                (udisksctl-unlock device-name))
+      (message "No device name found at point."))))
+
+(defun udisksctl-poweroff-at-point ()
+  "Power off the device at the current line.
+This function is designed for the udisksctl buffer."
+  (interactive)
+  (let ((device-name (udisksctl--find-device-name)))
+    (if device-name
+        (progn (message "Powering off %s" device-name)
+               (udisksctl-poweroff device-name))
       (message "No device name found at point."))))
 
 (defun udisksctl-info-at-point ()
