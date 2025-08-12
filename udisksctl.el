@@ -596,7 +596,7 @@ UDISK-DATA sholud be the data provided by the udisksctl program (see
 `udisksctl-device-alist' and `udisksctl-update-device-list')."
   (insert (format " | %s "
                   (propertize
-                   (car (alist-get "MountPoints" device-data nil nil #'string=))
+                   (format "%S" (car (alist-get "MountPoints" device-data nil nil #'string=)))
                    'udisk-data udisk-data))))
 
 (defun udisksctl--insert-section (section-data &optional udisk-data)
