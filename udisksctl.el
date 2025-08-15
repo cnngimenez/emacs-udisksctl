@@ -253,7 +253,10 @@ programs.  A special auth-source backend should be configured in Emacs.
 UUID is the disk identifier to search on auth-source."
   (let ((secret (auth-source-search :label uuid :folder "SolidLuks")))
     (when secret
-      (plist-get (car secret) :secret))))
+      (let ((pass (plist-get (car secret) :secret)))
+        (if (functionp pass)
+            (funcall pass)
+          pass)))))
       
 (defun udisksctl--get-password (uuid)
   "Retrieve password to unlock UUID disk from different sources.
