@@ -634,11 +634,14 @@ udisksctl dump)."
   (unless no-update
     (udisksctl-update-device-alist))
   (with-current-buffer (get-buffer-create udisksctl-list-buffer-name)
-    (let ((inhibit-read-only t))
-      (udisksctl-mode)
-      (erase-buffer)
-      (mapc #'udisksctl--insert-udisk udisksctl-device-alist))
-    (switch-to-buffer (current-buffer))))
+    (let ((curpoint (point)) ;; save-excursion did not work because of erase-buffer!
+          (inhibit-read-only t))
+        (udisksctl-mode)
+        (erase-buffer)
+        (mapc #'udisksctl--insert-udisk udisksctl-device-alist)
+        (goto-char curpoint))
+    (switch-to-buffer (current-buffer)))
+  (message "udisksctl-list reloaded!"))
 
 (defun udisksctl-mount-at-point ()
   "Mount the device at the current line.
