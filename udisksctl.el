@@ -137,7 +137,7 @@ Use `udisksctl-update-device-alist' function to update this variable.")
     map)
   "Keymap for `udisksctl-mode'.")
 
-(define-derived-mode udisksctl-mode special-mode
+(define-derived-mode udisksctl-mode tabulated-list-mode
   "Udisksctl"
   "Major mode for udisksctl.
 Shows status information about disks via udisksctl.
@@ -146,8 +146,17 @@ Keybindings:
 \\{udisksctl-mode-map}"
   (kill-all-local-variables)
   (use-local-map udisksctl-mode-map)
-  (setq-local major-mode 'udisksctl-mode
-	      buffer-read-only t))
+  (setq tabulated-list-format [(" " 2 nil)
+                               ("dev" 15 t)
+                               ("type" 10 t)
+                               ("rw" 2 nil)
+                               ("size" 15 nil)
+                               ("tag" 15 t)
+                               ("mount" 15 t)])
+  (setq tabulated-list-sort-key nil)
+  (setq tabulated-list-use-header-line t)
+  (tabulated-list-init-header)
+  (add-hook 'tabulated-list-revert-hook #'udisksctl-list nil t))
 
 ;; ;; For debugging purposes only!
 ;;(setq debug-on-error nil)
@@ -549,97 +558,83 @@ STRING is the complete udisksctl dump output."
   "Face used for device names."
   :group 'udisksctl)
 
-(defun udisksctl--add-string-property (property-type data string)
-  "Add a set of properties to the given STRING.
-There are several sets of properties with names.  Given the
-PROPERTY-TYPE name, assign that set of properties.
-Possible values of PROPERTY-TYPE are symbols such as: device,
-readonly, label.
-DATA is the udisk-data to store on the given PROPERTY-TYPE name.  This data is
-provided by udisksctl program."
-  
-  (cond ((eq property-type 'device)
-         (propertize string
-                     'face 'udisksctl-device-face
-                     'udisks-type 'device
-                     'udisks-data data))
-        ((eq property-type 'readonly)
-         (propertize string
-                     'face 'udisksctl-readonly-face
-                     'udisks-type 'readonly
-                     'udisks-data data))
-        ((eq property-type 'readonly)
-         (propertize string
-                     'face 'udisksctl-label-face
-                     'udisks-type 'label
-                     'udisks-data data))
-        (t string)))
+(defun udisksctl--file-size (section-data)
+  "Return the size in human readable string if exists.
+SECTION-DATA is an udiskstl parsed section."
+  (let ((size-str (car (alist-get "Size" section-data nil nil #'string=))))
+    (if size-str
+        (file-size-human-readable (string-to-number size-str))
+      "no info")))
 
-(defun udisksctl--insert-block (device-data &optional udisk-data)
-  "Insert device information for user consumption.
-Format a string and insert the information from DEVICE-DATA to the
-current buffer.
-UDISK-DATA sholud be the data provided by the udisksctl program (see
-`udisksctl-device-alist' and `udisksctl-update-device-list')."
-  (insert (format "%s %s %s 🏷️\"%s\""
-                  (udisksctl--add-string-property
-                   'device
-                   udisk-data
-                   (car (alist-get "Device" device-data nil nil #'string=)))
-                  (car (alist-get "IdType" device-data nil nil #'string=))
-                  (if (string= "true" (car (alist-get "ReadOnly" device-data nil nil #'string=)))
-                      "🔒"
-                    "✍️")
-                  (car (alist-get "IdLabel" device-data nil nil #'string=)))))
+(defun udisksctl-section-data-to-entries (section-data)
+  "From an udisksctl section, generate a tabulated-list enry.
+SECTION-DATA is a parsed section from the udisksctl-cli command."
+  (when (cdr section-data)
+    (list section-data (vector
+                        (if (equal (car (alist-get 'type section-data)) 'mount)
+                            "├m"
+                          "┌d")
+                        (or (car (alist-get "Device" section-data nil nil #'string=)) "")
+                        (or (car (alist-get "IdType" section-data nil nil #'string=)) "")
+                        (if (string= "true" (car (alist-get "ReadOnly" section-data nil nil #'string=)))
+                            "🔒"
+                          "✍️")
+                        (udisksctl--file-size section-data)
+                        (or (car (alist-get "IdLabel" section-data nil nil #'string=))
+                            "")
+                        (or (car (alist-get "MountPoints" section-data nil nil #'string=))
+                            "")))))
 
-(defun udisksctl--insert-filesystem (device-data &optional udisk-data)
-  "Insert filesystem information for user consumption.
-DEVICE-DATA is the filesystem parsed information.
-UDISK-DATA sholud be the data provided by the udisksctl program (see
-`udisksctl-device-alist' and `udisksctl-update-device-list')."
-  (insert (format " | %s "
-                  (propertize
-                   (format "%S" (car (alist-get "MountPoints" device-data nil nil #'string=)))
-                   'udisk-data udisk-data))))
+(defun udisksctl-udisk-data-to-entries (udisk-data)
+  "Generate a list of tabulated-list entries from UDISKS-DATA.
+UDISK-DATA must be one of the items in the list data parsed from udisksctl-cli.
+It must have a \"sections\" element.
 
-(defun udisksctl--insert-section (section-data &optional udisk-data)
-  "Insert the section data for user consumption.
-Call the proper function depending on the type of the section.
-SECTION-DATA is a parsed section from the dump.
-Add UDISK-DATA to the string property udisk-data at the inserted
-string."
-  (cond ((udisksctl-device-block-p section-data)
-         (udisksctl--insert-block section-data udisk-data))
-        ((udisksctl-device-filesystem-p section-data)
-         (udisksctl--insert-filesystem section-data udisk-data))))
-
-(defun udisksctl--insert-udisk (udisk-data)
-  "Insert udisk and their sections data into current buffer.
-Format a string and insert it for user consumption.
-UDISK-DATA is a parsed udisk information."
-  (mapc (lambda (section-data)
-          (udisksctl--insert-section section-data udisk-data))
-        (car (alist-get "sections" udisk-data nil nil #'string=)))
-  (insert "\n"))
-                         
+See `udisksctl-device-alist' for an example."
+  (let ((previous-section nil))
+    (delq nil
+          (mapcar
+           (lambda (section-data)
+             "Use SECTION-DATA if it has Device key or PREVIOUS-SECTION otherwise."
+             (udisksctl-section-data-to-entries (if (alist-get "Device" section-data nil nil #'string=)
+                                                    (progn (setq previous-section section-data)
+                                                           (append '((type dev)) section-data))
+                                                  (append '((type mount)) previous-section section-data))))
+           (cl-delete-if ;; We filter the list of sections to show only interesting ones.
+            (lambda (section-data)
+              "True if SECTION-DATA has no IdType ar no MountPoints.
+                          In other words, delete sections without type format
+                          nor mount points."
+              (and (string= ""
+                            (car (alist-get "IdType" section-data '("") nil #'string=)))
+                   (not (alist-get "MountPoints" section-data nil nil #'string=))))
+            (car (alist-get "sections" udisk-data nil nil #'string=)))))))
+                        
 (defun udisksctl-update-device-alist ()
   "Update variables with new device information from udisksctl."
   (setq udisksctl-device-alist (udisksctl--call-dump)))
+
+(defun udisksctl-device-alist-to-entries (&optional device-alist)
+  "Transform a parsed output from udisksctl-cli to tabulated-list entries.
+DEVICE-ALIST is a parsed output from udisksctl-cli.  If nil or not provided,
+the default `udisksctl-device-alist' is used.  See
+`udisksctl-update-device-alist' to update the default device alist."
+  (delq nil (mapcan #'udisksctl-udisk-data-to-entries
+                    (or device-alist udisksctl-device-alist))))
 
 (defun udisksctl-list (&optional no-update)
   "Show an interactive buffer with a list of devices.
 If NO-UPDATE is t, the do not update the device list (do not call
 udisksctl dump)."
   (interactive "P")
-  (unless no-update
-    (udisksctl-update-device-alist))
   (with-current-buffer (get-buffer-create udisksctl-list-buffer-name)
-    (let ((curpoint (point)) ;; save-excursion did not work because of erase-buffer!
-          (inhibit-read-only t))
-        (udisksctl-mode)
-        (erase-buffer)
-        (mapc #'udisksctl--insert-udisk udisksctl-device-alist)
-        (goto-char curpoint))
+    (unless no-update
+      (udisksctl-update-device-alist)
+      (setq tabulated-list-entries (udisksctl-device-alist-to-entries)))
+    (let ((curpoint (point))) ;; save-excursion did not work because of erase-buffer!
+      (udisksctl-mode)
+      (tabulated-list-print)
+      (goto-char curpoint))
     (switch-to-buffer (current-buffer)))
   (message "udisksctl-list reloaded!"))
 
@@ -721,38 +716,16 @@ information."
 (defun udisksctl-find-file-at-point ()
   "Open Dired with the mounted directory at current position."
   (interactive)
-  (let ((udisks-data (udisksctl--find-device-data-at-point)))
-    (when udisks-data
-      (find-file
-       (car (alist-get "MountPoints"
-                       (udisksctl--find-section "org.freedesktop.UDisks2.Filesystem"
-                                               udisks-data)
-                       nil nil #'string=))))))
+  (let ((file-path (car (alist-get "MountPoints"
+                                   (tabulated-list-get-id)
+                                   nil nil #'string=))))
+    (if file-path
+        (find-file file-path)
+      (message "Cannot find mount-point at current position."))))
   
 (defun udisksctl--find-device-name ()
   "Find the device name near the current point."
-  (save-excursion
-    (goto-char (line-end-position))
-    (let ((pmatch (text-property-search-backward 'udisks-type 'device t)))
-      (when (and pmatch
-                 (<= (line-beginning-position) (prop-match-beginning pmatch))
-                 (<= (prop-match-end pmatch) (line-end-position)))
-        (buffer-substring-no-properties (prop-match-beginning pmatch)
-                                        (prop-match-end pmatch))))))
-
-(defun udisksctl--find-device-data-at-point ()
-  "Find device data properties at current point.
-Search the device porperty stored at in the \\'udisks-data text property in the
-current line."
-  (save-excursion
-    (when (equal 0 (current-column))
-      ;; We need to move one character to the right, otherwise it will search for the previous line device data.
-      (right-char))
-    (let ((pmatch (text-property-search-backward 'udisks-type 'device t)))
-      (when (and pmatch
-                 (<= (line-beginning-position) (prop-match-beginning pmatch))
-                 (<= (prop-match-end pmatch) (line-end-position)))
-        (get-text-property (prop-match-beginning pmatch) 'udisks-data)))))
+  (car (alist-get "Device" (tabulated-list-get-id) nil nil #'string=)))
     
 
 (provide 'udisksctl)
