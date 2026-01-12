@@ -156,6 +156,7 @@ Keybindings:
   (setq tabulated-list-sort-key nil)
   (setq tabulated-list-use-header-line t)
   (tabulated-list-init-header)
+  (visual-line-mode -1) ;; visual line mode make mountpoints look below the line.
   (add-hook 'tabulated-list-revert-hook #'udisksctl-list nil t))
 
 ;; ;; For debugging purposes only!
