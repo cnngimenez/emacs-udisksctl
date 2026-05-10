@@ -1,0 +1,259 @@
+
+* Requirements
+Any Operative System with a working =udisksctl= command.
+
+* Usage
+Call =M-x udisksctl-list= to see the list of devices plugged on your computer, with their associated directories. The buffer is in udisksctl-mode and provides a keymap.
+
+The most important interactive functions are:
+
+- =udisksctl-list=
+- =udisksctl-status=
+- =udisksctl-info=
+- =udisksctl-mount=
+- =udisksctl-unmount=
+- =udisksctl-unlock=
+- =udisksctl-lock=
+- =udisksctl-poweroff=
+
+** Auth-source
+For locked (i.e. encrypted) disks, passwords are obtained from auth-source or directly from user prompt. If =udisksctl-use-auth-source-passwords= customisation variable is nil, then auth-source is not used.
+
+It is recommended to use KWallet with auth-source by using auth-source-kwallet. See [[https://github.com/vaartis/auth-source-kwallet][auth-source-kwallet home page]] for more information. It is also available as a MELPA package. It requires the following use-package snippet:
+
+#+begin_src elisp
+(use-package auth-source-kwallet
+  :config
+  (auth-source-kwallet-enable))
+#+end_src
+
+Or use the following Elisp to load the package:
+
+#+begin_src elisp
+(require 'auth-source-kwallet)
+(auth-source-kwallet-enable)
+#+end_src
+
+* Development information
+
+** Section data
+Section data are parsed information of a udisksctl dump section. 
+
+*** The original text
+#+begin_src text
+/org/freedesktop/UDisks2/block_devices/dm_2d0:
+  org.freedesktop.UDisks2.Block:
+    Configuration:              [('fstab', {'fsname': <b'/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890'>, 'dir': <b'/'>, 'type': <b'ext4'>, 'opts': <b'defaults,noatime'>, 'freq': <0>, 'passno': <1>})]
+    CryptoBackingDevice:        '/org/freedesktop/UDisks2/block_devices/sda7'
+    Device:                     /dev/dm-0
+    DeviceNumber:               12345
+    Drive:                      '/'
+    HintAuto:                   false
+    HintIconName:               
+    HintIgnore:                 false
+    HintName:                   
+    HintPartitionable:          false
+    HintSymbolicIconName:       
+    HintSystem:                 true
+    Id:                         by-id-dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890
+    IdLabel:                    
+    IdType:                     ext4
+    IdUUID:                     12345678-90ab-cdef-1234-567890abcdef
+    IdUsage:                    filesystem
+    IdVersion:                  1.0
+    MDRaid:                     '/'
+    MDRaidMember:               '/'
+    PreferredDevice:            /dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890
+    ReadOnly:                   false
+    Size:                       104855502848
+    Symlinks:                   /dev/disk/by-diskseq/2
+                                /dev/disk/by-id/dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890
+                                /dev/disk/by-id/dm-uuid-CRYPT-LUKS1-abcdef1234567890abcdef1234567890-luks-abcdef12-3456-7890-abcd-ef1234567890
+                                /dev/disk/by-uuid/12345678-90ab-cdef-1234-567890abcdef
+                                /dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890
+    UserspaceMountOptions:      
+  org.freedesktop.UDisks2.Filesystem:
+    MountPoints:        /
+                        /gnu/store
+    Size:               104855502848
+#+end_src
+
+Two section-data are created from this udisksctl output: a device type, and a mount-type section data.
+
+*** A device type section-data
+
+#+begin_src elisp
+  (((type dev) ;; <- (1)
+    ("type" "org.freedesktop.UDisks2.Block")
+    ("Configuration" "[('fstab', {'fsname'" "<b'/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890'>, 'dir'" "<b'/'>, 'type'" "<b'ext4'>, 'opts'" "<b'defaults,noatime'>, 'freq'" "<0>, 'passno'" "<1>})]")
+    ("CryptoBackingDevice" "'/org/freedesktop/UDisks2/block_devices/sda7'")
+    ("Device" "/dev/dm-0")
+    ("DeviceNumber" "12345")
+    ("Drive" "'/'")
+    ("HintAuto" "false")
+    ("HintIconName" "")
+    ("HintIgnore" "false")
+    ("HintName" "")
+    ("HintPartitionable" "false")
+    ("HintSymbolicIconName" "")
+    ("HintSystem" "true")
+    ("Id" "by-id-dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890")
+    ("IdLabel" "")
+    ("IdType" "ext4")
+    ("IdUUID" "12345678-90ab-cdef-1234-567890abcdef")
+    ("IdUsage" "filesystem")
+    ("IdVersion" "1.0")
+    ("MDRaid" "'/'")
+    ("MDRaidMember" "'/'")
+    ("PreferredDevice" "/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890")
+    ("ReadOnly" "false")
+    ("Size" "104855502848")
+    ("Symlinks" ("/dev/disk/by-diskseq/2"
+                 "/dev/disk/by-id/dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890"
+                 "/dev/disk/by-id/dm-uuid-CRYPT-LUKS1-abcdef1234567890abcdef1234567890-luks-abcdef12-3456-7890-abcd-ef1234567890" "/dev/disk/by-uuid/12345678-90ab-cdef-1234-567890abcdef" "/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890"))
+    ("UserspaceMountOptions" ""))
+#+end_src
+
+The line (1) is included by help:udisksctl-udisk-data-to-entries when "Device" is found.
+
+*** A mount type section-data
+A parsed mount section-data is as follows:
+
+#+begin_src elisp
+  (("type" "org.freedesktop.UDisks2.Filesystem") 
+  ("MountPoints" ("/" "/gnu/store"))
+  ("Size" "104855502848"))
+#+end_src
+
+This is provided by the mount points found on the original text. This is not useful for representing all elements as the device is not present. When user select this option, the program cannot determine the device is referring these mountpoints. To complete all the alist data, the previous section-data is used (which it is expected to be a device-type if the original text is provided), and in this case, all information needed is stored for future usage. 
+
+A complete mount section-data is therefore represented as follows:
+
+#+begin_src elisp
+  ((type mount) ;; <- (1)
+   ("type" "org.freedesktop.UDisks2.Block")
+   ("Configuration" "[('fstab', {'fsname'" "<b'/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890'>, 'dir'" "<b'/'>, 'type'" "<b'ext4'>, 'opts'" "<b'defaults,noatime'>, 'freq'" "<0>, 'passno'" "<1>})]")
+   ("CryptoBackingDevice" "'/org/freedesktop/UDisks2/block_devices/sda7'")
+   ("Device" "/dev/dm-0")
+   ("DeviceNumber" "12345")
+   ("Drive" "'/'")
+   ("HintAuto" "false")
+   ("HintIconName" "")
+   ("HintIgnore" "false")
+   ("HintName" "")
+   ("HintPartitionable" "false")
+   ("HintSymbolicIconName" "")
+   ("HintSystem" "true")
+   ("Id" "by-id-dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890")
+   ("IdLabel" "")
+   ("IdType" "ext4")
+   ("IdUUID" "12345678-90ab-cdef-1234-567890abcdef")
+   ("IdUsage" "filesystem")
+   ("IdVersion" "1.0")
+   ("MDRaid" "'/'")
+   ("MDRaidMember" "'/'")
+   ("PreferredDevice" "/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890")
+   ("ReadOnly" "false")
+   ("Size" "104855502848")
+   ("Symlinks" ("/dev/disk/by-diskseq/2"
+                "/dev/disk/by-id/dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890"
+                "/dev/disk/by-id/dm-uuid-CRYPT-LUKS1-abcdef1234567890abcdef1234567890-luks-abcdef12-3456-7890-abcd-ef1234567890"
+                "/dev/disk/by-uuid/12345678-90ab-cdef-1234-567890abcdef"
+                "/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890"))
+   ("UserspaceMountOptions" "")
+   ("type" "org.freedesktop.UDisks2.Filesystem") ;; <- (2)
+   ("MountPoints" ("/" "/gnu/store"))
+   ("Size" "104855502848"))
+#+end_src
+
+The line (1) is added by help:udisksctl-udisk-data-to-entries when "Device" is not found. The only elements in the original section-data are from line (2), everything before this line were added by the same Elisp function parsed from the original text subsection =org.freedesktop.UDisks2.Filesystem:= (the previous section-data).
+
+
+
+
+* Meta     :noexport:
+
+# ----------------------------------------------------------------------
+#+TITLE:  Udisksctl Emacs Interface
+#+SUBTITLE:
+#+AUTHOR: Christian Gimenez
+#+DATE:   09 may 2026
+#+EMAIL:
+#+DESCRIPTION: 
+#+KEYWORDS: 
+#+COLUMNS: %40ITEM(Task) %17Effort(Estimated Effort){:} %CLOCKSUM
+#+STARTUP: inlineimages hidestars content hideblocks entitiespretty
+#+STARTUP: indent fninline latexpreview
+#+OPTIONS: H:3 num:t toc:t \n:nil @:t ::t |:t ^:{} -:t f:t *:t <:t ':t
+#+OPTIONS: TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc
+#+OPTIONS: tex:imagemagick
+#+TODO: TODO(t!) CURRENT(c!) PAUSED(p!) | DONE(d!) CANCELED(C!@)
+
+# -- Export
+#+LANGUAGE: en
+# #+LINK_UP:   
+# #+LINK_HOME:
+# #+export_file_name: index
+# #+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+
+
+# -- HTML Export
+# #+INFOJS_OPT: view:info toc:t ftoc:t ltoc:t mouse:underline buttons:t path:libs/org-info.js
+# #+HTML_LINK_UP: index.html
+# #+HTML_LINK_HOME: index.html
+# #+XSLT:
+#
+# -- For ox-twbs or HTML Export
+# -- -- CSS 
+# #+HTML_HEAD: <link href="libs/bootstrap.min.css" rel="stylesheet">
+# -- -- JS Scripts
+# #+HTML_HEAD: <script src="libs/bootstrap.min.js"></script>
+
+
+# -- LaTeX Export
+# #+latex_class: article
+#+latex_compiler: xelatex
+# #+latex_class_options: [12pt, twoside]
+#
+# #+latex_header: \usepackage[spanish]{babel} 
+#+latex_header: \usepackage{csquotes}
+#+latex_header: \usepackage{scrextend}
+#+latex_header: \changefontsizes{14pt}
+#+latex_header: \usepackage[margin=2cm]{geometry}
+#+latex_header: \usepackage{fontspec}
+#+latex_header: \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
+#+latex_header: \setmainfont{Latin Modern Sans}
+#+latex_header: \renewcommand{\baselinestretch}{1.25}
+#+latex_header_extra: \hypersetup{colorlinks}
+#
+# -- -- BibLaTex
+# #+latex_header: \usepackage[backend=biber, style=alphabetic, backref=true]{biblatex}
+# #+latex_header: \addbibresource{tangled/biblio.bib}
+# -- -- Tikz
+# #+LATEX_HEADER: \usepackage{tikz}
+# #+LATEX_HEADER: \usetikzlibrary{arrows.meta}
+# #+LATEX_HEADER: \usetikzlibrary{decorations}
+# #+LATEX_HEADER: \usetikzlibrary{decorations.pathmorphing}
+# #+LATEX_HEADER: \usetikzlibrary{shapes.geometric}
+# #+LATEX_HEADER: \usetikzlibrary{shapes.symbols}
+# #+LATEX_HEADER: \usetikzlibrary{positioning}
+# #+LATEX_HEADER: \usetikzlibrary{trees}
+# #+LATEX_HEADER_EXTRA: \usepackage[capitalize]{cleveref}
+
+# --  Info Export
+#+TEXINFO_DIR_CATEGORY: Emacs
+#+TEXINFO_DIR_TITLE: Udisksctl Emacs Interface: (udisksctl-el)
+#+TEXINFO_DIR_DESC: An Emacs interface for udisksctl.
+#+TEXINFO_PRINTED_TITLE: Udisksctl Emacs Interface
+#+TEXINFO_FILENAME: udisksctl-el.info
+
+
+# Local Variables:
+# org-hide-emphasis-markers: t
+# org-use-sub-superscripts: "{}"
+# fill-column: 80
+# visual-line-fringe-indicators: t
+# ispell-local-dictionary: "british"
+# org-latex-default-figure-position: "tbp"
+# End:

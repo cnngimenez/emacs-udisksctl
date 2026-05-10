@@ -1,0 +1,285 @@
+This is udisksctl-el.info, produced by makeinfo version 7.2 from
+udisksctl-el.texi.
+
+INFO-DIR-SECTION Emacs
+START-INFO-DIR-ENTRY
+* Udisksctl Emacs Interface: (udisksctl-el). An Emacs interface for udisksctl.
+END-INFO-DIR-ENTRY
+
+
+File: udisksctl-el.info,  Node: Top,  Next: Requirements,  Up: (dir)
+
+Udisksctl Emacs Interface
+*************************
+
+* Menu:
+
+* Requirements::
+* Usage::
+* Development information::
+
+-- The Detailed Node Listing --
+
+Usage
+
+* Auth-source::
+
+Development information
+
+* Section data::
+
+Section data
+
+* The original text::
+* A device type section-data::
+* A mount type section-data::
+
+
+File: udisksctl-el.info,  Node: Requirements,  Next: Usage,  Prev: Top,  Up: Top
+
+1 Requirements
+**************
+
+Any Operative System with a working ‘udisksctl’ command.
+
+
+File: udisksctl-el.info,  Node: Usage,  Next: Development information,  Prev: Requirements,  Up: Top
+
+2 Usage
+*******
+
+Call ‘M-x udisksctl-list’ to see the list of devices plugged on your
+computer, with their associated directories.  The buffer is in
+udisksctl-mode and provides a keymap.
+
+   The most important interactive functions are:
+
+   • ‘udisksctl-list’
+   • ‘udisksctl-status’
+   • ‘udisksctl-info’
+   • ‘udisksctl-mount’
+   • ‘udisksctl-unmount’
+   • ‘udisksctl-unlock’
+   • ‘udisksctl-lock’
+   • ‘udisksctl-poweroff’
+
+* Menu:
+
+* Auth-source::
+
+
+File: udisksctl-el.info,  Node: Auth-source,  Up: Usage
+
+2.1 Auth-source
+===============
+
+For locked (i.e.  encrypted) disks, passwords are obtained from
+auth-source or directly from user prompt.  If
+‘udisksctl-use-auth-source-passwords’ customisation variable is nil,
+then auth-source is not used.
+
+   It is recommended to use KWallet with auth-source by using
+auth-source-kwallet.  See auth-source-kwallet home page
+(https://github.com/vaartis/auth-source-kwallet) for more information.
+It is also available as a MELPA package.  It requires the following
+use-package snippet:
+
+     (use-package auth-source-kwallet
+       :config
+       (auth-source-kwallet-enable))
+
+   Or use the following Elisp to load the package:
+
+     (require 'auth-source-kwallet)
+     (auth-source-kwallet-enable)
+
+
+File: udisksctl-el.info,  Node: Development information,  Prev: Usage,  Up: Top
+
+3 Development information
+*************************
+
+* Menu:
+
+* Section data::
+
+
+File: udisksctl-el.info,  Node: Section data,  Up: Development information
+
+3.1 Section data
+================
+
+Section data are parsed information of a udisksctl dump section.
+
+* Menu:
+
+* The original text::
+* A device type section-data::
+* A mount type section-data::
+
+
+File: udisksctl-el.info,  Node: The original text,  Next: A device type section-data,  Up: Section data
+
+3.1.1 The original text
+-----------------------
+
+     /org/freedesktop/UDisks2/block_devices/dm_2d0:
+       org.freedesktop.UDisks2.Block:
+         Configuration:              [('fstab', {'fsname': <b'/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890'>, 'dir': <b'/'>, 'type': <b'ext4'>, 'opts': <b'defaults,noatime'>, 'freq': <0>, 'passno': <1>})]
+         CryptoBackingDevice:        '/org/freedesktop/UDisks2/block_devices/sda7'
+         Device:                     /dev/dm-0
+         DeviceNumber:               12345
+         Drive:                      '/'
+         HintAuto:                   false
+         HintIconName:
+         HintIgnore:                 false
+         HintName:
+         HintPartitionable:          false
+         HintSymbolicIconName:
+         HintSystem:                 true
+         Id:                         by-id-dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890
+         IdLabel:
+         IdType:                     ext4
+         IdUUID:                     12345678-90ab-cdef-1234-567890abcdef
+         IdUsage:                    filesystem
+         IdVersion:                  1.0
+         MDRaid:                     '/'
+         MDRaidMember:               '/'
+         PreferredDevice:            /dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890
+         ReadOnly:                   false
+         Size:                       104855502848
+         Symlinks:                   /dev/disk/by-diskseq/2
+                                     /dev/disk/by-id/dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890
+                                     /dev/disk/by-id/dm-uuid-CRYPT-LUKS1-abcdef1234567890abcdef1234567890-luks-abcdef12-3456-7890-abcd-ef1234567890
+                                     /dev/disk/by-uuid/12345678-90ab-cdef-1234-567890abcdef
+                                     /dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890
+         UserspaceMountOptions:
+       org.freedesktop.UDisks2.Filesystem:
+         MountPoints:        /
+                             /gnu/store
+         Size:               104855502848
+
+   Two section-data are created from this udisksctl output: a device
+type, and a mount-type section data.
+
+
+File: udisksctl-el.info,  Node: A device type section-data,  Next: A mount type section-data,  Prev: The original text,  Up: Section data
+
+3.1.2 A device type section-data
+--------------------------------
+
+     (((type dev) ;; <- (1)
+       ("type" "org.freedesktop.UDisks2.Block")
+       ("Configuration" "[('fstab', {'fsname'" "<b'/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890'>, 'dir'" "<b'/'>, 'type'" "<b'ext4'>, 'opts'" "<b'defaults,noatime'>, 'freq'" "<0>, 'passno'" "<1>})]")
+       ("CryptoBackingDevice" "'/org/freedesktop/UDisks2/block_devices/sda7'")
+       ("Device" "/dev/dm-0")
+       ("DeviceNumber" "12345")
+       ("Drive" "'/'")
+       ("HintAuto" "false")
+       ("HintIconName" "")
+       ("HintIgnore" "false")
+       ("HintName" "")
+       ("HintPartitionable" "false")
+       ("HintSymbolicIconName" "")
+       ("HintSystem" "true")
+       ("Id" "by-id-dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890")
+       ("IdLabel" "")
+       ("IdType" "ext4")
+       ("IdUUID" "12345678-90ab-cdef-1234-567890abcdef")
+       ("IdUsage" "filesystem")
+       ("IdVersion" "1.0")
+       ("MDRaid" "'/'")
+       ("MDRaidMember" "'/'")
+       ("PreferredDevice" "/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890")
+       ("ReadOnly" "false")
+       ("Size" "104855502848")
+       ("Symlinks" ("/dev/disk/by-diskseq/2"
+                    "/dev/disk/by-id/dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890"
+                    "/dev/disk/by-id/dm-uuid-CRYPT-LUKS1-abcdef1234567890abcdef1234567890-luks-abcdef12-3456-7890-abcd-ef1234567890" "/dev/disk/by-uuid/12345678-90ab-cdef-1234-567890abcdef" "/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890"))
+       ("UserspaceMountOptions" ""))
+
+   The line (1) is included by <help:udisksctl-udisk-data-to-entries>
+when "Device" is found.
+
+
+File: udisksctl-el.info,  Node: A mount type section-data,  Prev: A device type section-data,  Up: Section data
+
+3.1.3 A mount type section-data
+-------------------------------
+
+A parsed mount section-data is as follows:
+
+     (("type" "org.freedesktop.UDisks2.Filesystem")
+     ("MountPoints" ("/" "/gnu/store"))
+     ("Size" "104855502848"))
+
+   This is provided by the mount points found on the original text.
+This is not useful for representing all elements as the device is not
+present.  When user select this option, the program cannot determine the
+device is referring these mountpoints.  To complete all the alist data,
+the previous section-data is used (which it is expected to be a
+device-type if the original text is provided), and in this case, all
+information needed is stored for future usage.
+
+   A complete mount section-data is therefore represented as follows:
+
+     ((type mount) ;; <- (1)
+      ("type" "org.freedesktop.UDisks2.Block")
+      ("Configuration" "[('fstab', {'fsname'" "<b'/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890'>, 'dir'" "<b'/'>, 'type'" "<b'ext4'>, 'opts'" "<b'defaults,noatime'>, 'freq'" "<0>, 'passno'" "<1>})]")
+      ("CryptoBackingDevice" "'/org/freedesktop/UDisks2/block_devices/sda7'")
+      ("Device" "/dev/dm-0")
+      ("DeviceNumber" "12345")
+      ("Drive" "'/'")
+      ("HintAuto" "false")
+      ("HintIconName" "")
+      ("HintIgnore" "false")
+      ("HintName" "")
+      ("HintPartitionable" "false")
+      ("HintSymbolicIconName" "")
+      ("HintSystem" "true")
+      ("Id" "by-id-dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890")
+      ("IdLabel" "")
+      ("IdType" "ext4")
+      ("IdUUID" "12345678-90ab-cdef-1234-567890abcdef")
+      ("IdUsage" "filesystem")
+      ("IdVersion" "1.0")
+      ("MDRaid" "'/'")
+      ("MDRaidMember" "'/'")
+      ("PreferredDevice" "/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890")
+      ("ReadOnly" "false")
+      ("Size" "104855502848")
+      ("Symlinks" ("/dev/disk/by-diskseq/2"
+                   "/dev/disk/by-id/dm-name-luks-abcdef12-3456-7890-abcd-ef1234567890"
+                   "/dev/disk/by-id/dm-uuid-CRYPT-LUKS1-abcdef1234567890abcdef1234567890-luks-abcdef12-3456-7890-abcd-ef1234567890"
+                   "/dev/disk/by-uuid/12345678-90ab-cdef-1234-567890abcdef"
+                   "/dev/mapper/luks-abcdef12-3456-7890-abcd-ef1234567890"))
+      ("UserspaceMountOptions" "")
+      ("type" "org.freedesktop.UDisks2.Filesystem") ;; <- (2)
+      ("MountPoints" ("/" "/gnu/store"))
+      ("Size" "104855502848"))
+
+   The line (1) is added by <help:udisksctl-udisk-data-to-entries> when
+"Device" is not found.  The only elements in the original section-data
+are from line (2), everything before this line were added by the same
+Elisp function parsed from the original text subsection
+‘org.freedesktop.UDisks2.Filesystem:’ (the previous section-data).
+
+
+Tag Table:
+Node: Top228
+Node: Requirements616
+Node: Usage793
+Node: Auth-source1402
+Node: Development information2201
+Node: Section data2364
+Node: The original text2636
+Node: A device type section-data4926
+Node: A mount type section-data6738
+
+End Tag Table
+
+
+Local Variables:
+coding: utf-8
+Info-documentlanguage: en
+End:

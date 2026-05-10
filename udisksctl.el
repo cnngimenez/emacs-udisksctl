@@ -569,22 +569,29 @@ SECTION-DATA is an udiskstl parsed section."
 
 (defun udisksctl-section-data-to-entries (section-data)
   "From an udisksctl section, generate a tabulated-list enry.
-SECTION-DATA is a parsed section from the udisksctl-cli command."
+SECTION-DATA is a parsed section from the udisksctl-cli command.  It's too
+long to explain, see info for an example.
+
+The result is an entry data such as:
+(SECTION-DATA
+    [TYPE-STR DEVICE-BLOCK-STR FORMAT-STR RO-WR-STR CAPACITY-STR
+     LABEL-STR MOUNTPOINTS-STR])"
   (when (cdr section-data)
-    (list section-data (vector
-                        (if (equal (car (alist-get 'type section-data)) 'mount)
-                            "├m"
-                          "┌d")
-                        (or (car (alist-get "Device" section-data nil nil #'string=)) "")
-                        (or (car (alist-get "IdType" section-data nil nil #'string=)) "")
-                        (if (string= "true" (car (alist-get "ReadOnly" section-data nil nil #'string=)))
-                            "🔒"
-                          "✍️")
-                        (udisksctl--file-size section-data)
-                        (or (car (alist-get "IdLabel" section-data nil nil #'string=))
-                            "")
-                        (or (car (alist-get "MountPoints" section-data nil nil #'string=))
-                            "")))))
+    (list section-data
+          (vector
+           (if (equal (car (alist-get 'type section-data)) 'mount)
+               "├m"
+             "┌d")
+           (or (car (alist-get "Device" section-data nil nil #'string=)) "")
+           (or (car (alist-get "IdType" section-data nil nil #'string=)) "")
+           (if (string= "true" (car (alist-get "ReadOnly" section-data nil nil #'string=)))
+               "🔒"
+             "✍️")
+           (udisksctl--file-size section-data)
+           (or (car (alist-get "IdLabel" section-data nil nil #'string=))
+               "")
+           (or (format "%s" (car (alist-get "MountPoints" section-data nil nil #'string=)))
+               "")))))
 
 (defun udisksctl-udisk-data-to-entries (udisk-data)
   "Generate a list of tabulated-list entries from UDISKS-DATA.
@@ -620,6 +627,7 @@ See `udisksctl-device-alist' for an example."
 DEVICE-ALIST is a parsed output from udisksctl-cli.  If nil or not provided,
 the default `udisksctl-device-alist' is used.  See
 `udisksctl-update-device-alist' to update the default device alist."
+  (setq udisksctl-current-id 0)
   (delq nil (mapcan #'udisksctl-udisk-data-to-entries
                     (or device-alist udisksctl-device-alist))))
 
